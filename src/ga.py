@@ -340,15 +340,74 @@ class Individual_DE(object):
         return Individual_DE(g)
 
 
-Individual = Individual_Grid
+Individual = Individual_DE
 
 
 def generate_successors(population):
     results = []
     # STUDENT Design and implement this
     # Hint: Call generate_children() on some individuals and fill up results.
+    
+    # roulette wheel selection
+    # scale fintness through normalization
+    fitnesses = [individual.fitness() for individual in population]
+    min_fitness = min(fitnesses)
+    max_fitness = max(fitnesses)
+    fitness_range = max_fitness - min_fitness
+    normalized_fitnesses = [(fitness - min_fitness) / fitness_range for fitness in fitnesses]
+    # calculate cumulative probability
+    cumulative_probability = [sum(normalized_fitnesses[:i+1]) for i in range(len(normalized_fitnesses))]
+    # get random number
+    r = random.uniform(0, max(cumulative_probability))
+    # select parents
+    parent1 = population[0]
+    parent2 = population[0]
+    for i in range(len(cumulative_probability)):
+        if r < cumulative_probability[i]:
+            parent1 = population[i]
+            break
+    r = random.uniform(0, max(cumulative_probability))
+    for i in range(len(cumulative_probability)):
+        if r < cumulative_probability[i]:
+            if population[i] != parent1:
+                parent2 = population[i]
+            else:
+                parent2 = population[i-1]
+            break
+
+    # generate children
+    roulette_children = parent1.generate_children(parent2)
+
+    # tournament selection
+    tournament_population = population.copy()
+    tournament_size = 2
+    tournament_parent1 = population[0]
+    tournament_parent2 = population[0]
+    winners = []
+    while len(winners) != 2:
+        winners = []
+        groups = make_groups(tournament_population, tournament_size)
+        for group in groups:
+            winner = max(group, key=Individual.fitness)
+            winners.append(winner)
+            # remove losers from population
+            for loser in group:
+                if loser not in winners:
+                    tournament_population.remove(loser)
+    tournament_parent1 = winners[0]
+    tournament_parent2 = winners[1]
+
+
+    # generate children
+    tournament_children = tournament_parent1.generate_children(tournament_parent2)
+
+    # add children to results
+    results.extend(roulette_children)
+    results.extend(tournament_children)
     return results
 
+def make_groups(population, group_size):
+    return [population[i:i + group_size] for i in range(0, len(population), group_size)]
 
 def ga():
     # STUDENT Feel free to play with this parameter
