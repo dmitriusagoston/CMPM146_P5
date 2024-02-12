@@ -86,7 +86,10 @@ class Individual_Grid(object):
             for x in range(left, right):
                 # STUDENT Which one should you take?  Self, or other?  Why?
                 # STUDENT consider putting more constraints on this to prevent pipes in the air, etc
-                pass
+                if random.random() < 0.5:
+                    new_genome[y][x] = other.genome[y][x]
+                else:
+                    new_genome[y][x] = self.genome[y][x]
         # do mutation; note we're returning a one-element tuple here
         return (Individual_Grid(new_genome),)
 
@@ -340,7 +343,7 @@ class Individual_DE(object):
         return Individual_DE(g)
 
 
-Individual = Individual_DE
+Individual = Individual_Grid  # Change this to Individual_DE to use the DE representation
 
 
 def generate_successors(population):
@@ -383,20 +386,19 @@ def generate_successors(population):
     tournament_size = 2
     tournament_parent1 = population[0]
     tournament_parent2 = population[0]
-    winners = []
-    while len(winners) != 2:
+    winners = [tournament_population[0], tournament_population[1]]
+
+    while len(tournament_population) > tournament_size:
+        tournament_group = make_groups(tournament_population, tournament_size)
+        for group in tournament_group:
+            winners.append(max(group, key=Individual.fitness))
+        tournament_population = winners.copy()
+        if len(winners) == tournament_size:
+            break
         winners = []
-        groups = make_groups(tournament_population, tournament_size)
-        for group in groups:
-            winner = max(group, key=Individual.fitness)
-            winners.append(winner)
-            # remove losers from population
-            for loser in group:
-                if loser not in winners:
-                    tournament_population.remove(loser)
+
     tournament_parent1 = winners[0]
     tournament_parent2 = winners[1]
-
 
     # generate children
     tournament_children = tournament_parent1.generate_children(tournament_parent2)
@@ -443,13 +445,12 @@ def ga():
                     print("Max fitness:", str(best.fitness()))
                     print("Average generation time:", (now - start) / generation)
                     print("Net time:", now - start)
-                    with open("levels/last.txt", 'w') as f:
+                    with open("level.txt", 'w') as f:
                         for row in best.to_level():
                             f.write("".join(row) + "\n")
                 generation += 1
                 # STUDENT Determine stopping condition
-                stop_condition = False
-                if stop_condition:
+                if generation > 1000:
                     break
                 # STUDENT Also consider using FI-2POP as in the Sorenson & Pasquier paper
                 gentime = time.time()
