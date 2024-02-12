@@ -45,13 +45,24 @@ class Individual_Grid(object):
         # Default fitness function: Just some arbitrary combination of a few criteria.  Is it good?  Who knows?
         # STUDENT Modify this, and possibly add more metrics.  You can replace this with whatever code you like.
         coefficients = dict(
+            length=0.5,
+            negativeSpace=3.5,
+            pathPercentage=1.5,
+            emptyPercentage=4.5,
+            decorationPercentage=0.5,
+            leniency=0.5,
+            meaningfulJumps=0.5,
+            jumps=0.5,
             meaningfulJumpVariance=0.5,
-            negativeSpace=0.6,
-            pathPercentage=0.5,
-            emptyPercentage=0.6,
-            linearity=-0.5,
-            solvability=2.0
+            jumpVariance=0.5,
+            linearity=1.5,
+            solvability=3.0
         )
+            # negativeSpace=1.0,
+            # pathPercentage=0.5,
+            # emptyPercentage=2.5,
+            # linearity=-0.5,
+            # solvability=2.0
         self._fitness = sum(map(lambda m: coefficients[m] * measurements[m],
                                 coefficients))
         return self
@@ -92,7 +103,8 @@ class Individual_Grid(object):
                 else:
                     new_genome[y][x] = self.genome[y][x]
         # do mutation; note we're returning a one-element tuple here
-        return Individual_Grid(self.mutate(new_genome))
+        # return Individual_Grid(self.mutate(new_genome))
+        return Individual_Grid(self.mutate(new_genome)), Individual_Grid(self.mutate(new_genome))
         # return (Individual_Grid(new_genome),)
 
     # Turn the genome into a level string (easy for this genome)
@@ -401,12 +413,12 @@ def generate_successors(population):
 
     # generate children
     roulette_children = []
-    for _ in range(int(len(population) // 2)):
-        roulette_children.append(parent1.generate_children(parent2))
+    for _ in range(int(len(population) // 4)):
+        roulette_children.extend(parent1.generate_children(parent2))
 
     tournament_children = []
-    for _ in range(int(len(population) // 2)):
-        tournament_children.append(tournament_parent1.generate_children(tournament_parent2))
+    for _ in range(int(len(population) // 4)):
+        tournament_children.extend(tournament_parent1.generate_children(tournament_parent2))
 
     # add children to results
     results.extend(roulette_children)
