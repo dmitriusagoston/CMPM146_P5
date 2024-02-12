@@ -72,7 +72,8 @@ class Individual_Grid(object):
         right = width - 1
         for y in range(height):
             for x in range(left, right):
-                pass
+                if random.random() < 0.1:
+                    genome[y][x] = random.choice(options)
         return genome
 
     # Create zero or more children from self and other
@@ -91,7 +92,8 @@ class Individual_Grid(object):
                 else:
                     new_genome[y][x] = self.genome[y][x]
         # do mutation; note we're returning a one-element tuple here
-        return (Individual_Grid(new_genome),)
+        return Individual_Grid(self.mutate(new_genome))
+        # return (Individual_Grid(new_genome),)
 
     # Turn the genome into a level string (easy for this genome)
     def to_level(self):
@@ -378,9 +380,6 @@ def generate_successors(population):
                 parent2 = population[i-1]
             break
 
-    # generate children
-    roulette_children = parent1.generate_children(parent2)
-
     # tournament selection
     tournament_population = population.copy()
     tournament_size = 2
@@ -401,11 +400,18 @@ def generate_successors(population):
     tournament_parent2 = winners[1]
 
     # generate children
-    tournament_children = tournament_parent1.generate_children(tournament_parent2)
+    roulette_children = []
+    for _ in range(int(len(population) // 2)):
+        roulette_children.append(parent1.generate_children(parent2))
+
+    tournament_children = []
+    for _ in range(int(len(population) // 2)):
+        tournament_children.append(tournament_parent1.generate_children(tournament_parent2))
 
     # add children to results
     results.extend(roulette_children)
     results.extend(tournament_children)
+
     return results
 
 def make_groups(population, group_size):
@@ -445,12 +451,12 @@ def ga():
                     print("Max fitness:", str(best.fitness()))
                     print("Average generation time:", (now - start) / generation)
                     print("Net time:", now - start)
-                    with open("level.txt", 'w') as f:
+                    with open("levels/last.txt", 'w') as f:
                         for row in best.to_level():
                             f.write("".join(row) + "\n")
                 generation += 1
                 # STUDENT Determine stopping condition
-                if generation > 1000:
+                if generation > 10:
                     break
                 # STUDENT Also consider using FI-2POP as in the Sorenson & Pasquier paper
                 gentime = time.time()
