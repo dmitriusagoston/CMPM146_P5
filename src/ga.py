@@ -337,7 +337,10 @@ class Individual_DE(object):
     @classmethod
     def empty_individual(_cls):
         # STUDENT Maybe enhance this
-        g = []
+        elt_count = random.randint(8, 128)
+        g = [random.choice([
+            (random.randint(1, width - 2), "0_hole", random.randint(1, 8))
+        ]) for i in range(elt_count)]
         return Individual_DE(g)
 
     @classmethod
@@ -357,7 +360,7 @@ class Individual_DE(object):
         return Individual_DE(g)
 
 
-Individual = Individual_Grid  # Change this to Individual_DE to use the DE representation
+Individual = Individual_DE  # Change this to Individual_DE to use the DE representation
 
 
 def generate_successors(population):
