@@ -46,7 +46,7 @@ class Individual_Grid(object):
         # STUDENT Modify this, and possibly add more metrics.  You can replace this with whatever code you like.
         coefficients = dict(
             length=0.5,
-            negativeSpace=3.5,
+            negativeSpace=1.5,
             pathPercentage=1.5,
             emptyPercentage=4.5,
             decorationPercentage=0.5,
@@ -55,8 +55,8 @@ class Individual_Grid(object):
             jumps=0.5,
             meaningfulJumpVariance=0.5,
             jumpVariance=0.5,
-            linearity=1.5,
-            solvability=3.0
+            linearity=0.5,
+            solvability=4.0
         )
             # negativeSpace=1.0,
             # pathPercentage=0.5,
@@ -80,11 +80,15 @@ class Individual_Grid(object):
         # STUDENT consider putting more constraints on this to prevent pipes in the air, etc
         # Define tile type weights (manually assigned or calculated)
         tile_weights = {
-            "X": 0.2,
-            "-": 0.5,
-            "B": 0.1,
-            "|": 0.05,
-            "E": 0.15
+            "-": 0.5,  # an empty space
+            "X": 0.1,  # a solid wall
+            "?": 0.02,  # a question mark block with a coin
+            "M": 0.01,  # a question mark block with a mushroom
+            "B": 0.05,  # a breakable block
+            "o": 0.1,  # a coin
+            "|": 0.2,  # a pipe segment
+            "T": 0.05,  # a pipe top
+            "E": 0.01,  # an enemy
         }
 
         # Normalize weights
@@ -95,20 +99,56 @@ class Individual_Grid(object):
         mutation_rate = 0.1  # Adjust as needed
 
         # Iterate through each tile in the genome and apply selective mutation
-        mutated_genome = []
-        for row in genome:
-            mutated_row = []
-            for tile in row:
+        left = 1
+        right = width - 1
+        for y in range(height - 1, 6, -1):
+            for x in range(left, right):
                 # Calculate mutation probability based on tile type weight
-                probability = normalized_weights.get(tile, 0) * mutation_rate
+                probability = normalized_weights.get(genome[y][x], 0) * mutation_rate
                 if random.random() < probability:
-                    # Mutate the tile with some mutation operation
-                    mutated_tile = mutate_tile(tile)
-                    mutated_row.append(mutated_tile)
+                    # # Mutate the tile with some mutation operation
+                    mutation = random.choices(list(tile_weights.keys()), list(normalized_weights.values()), k=1)[0]
+                    if mutation == "T":
+                        continue
+                    # # don't mutate pipes
+                    # if genome[y-1][x] == "T" or genome[y-1][x] == "|":
+                    #     continue
+                    # # bottom row
+                    # if y == height - 1:
+                    #     if mutation == "-" or mutation == "X" or mutation == "|" or mutation == "T":
+                    #         genome[y][x] = mutation
+                    #         continue
+                    #     else:
+                    #         continue
+                    if mutation == "|" and genome[y][x] == "T":
+                        genome[y][x] = mutation
+                        continue
+                    # # has grid below
+                    if y + 1 < height:
+                        # pipe constraint
+                        if mutation == "|" and (genome[y+1][x] == "X" or genome[y+1][x] == "|"):
+                            genome[y][x] = mutation
+                            continue
+                        elif mutation == "|":
+                            continue
+                        # clean enemy spawns constraint
+                        if mutation == "E" and genome[y][x] != "X" and genome[y+1][x] == "X":
+                            genome[y][x] = mutation
+                            continue
+                        elif mutation == "E":
+                            genome[y][x] = "-"
+                            continue
+                    genome[y][x] = mutation
                 else:
-                    mutated_row.append(tile)
-            mutated_genome.append(mutated_row)
-        return mutated_genome
+                    continue
+        for y in range(height - 1, 6, -1):
+            for x in range(left, right):
+                # pipe fixer
+                # if genome[y][x] == "|":
+                #     genome[y-1][x] = "T"
+                if (genome[y][x] != "|" and genome[y][x] != "X") and (genome[y-1][x] == "|" and genome[y][x] != "T"):
+                    genome[y][x] = "|"
+        return genome
     
     # Mutate a single tile
     def mutate_tile(self, tile):
@@ -133,19 +173,102 @@ class Individual_Grid(object):
         new_genome = copy.deepcopy(self.genome)
         # Leaving first and last columns alone...
         # do crossover with other
+
+        # uniform crossover
         left = 1
         right = width - 1
-        for y in range(height):
+        for y in range(height - 1, 6, -1):
             for x in range(left, right):
                 # STUDENT Which one should you take?  Self, or other?  Why?
                 # STUDENT consider putting more constraints on this to prevent pipes in the air, etc
-                if random.random() < 0.5:
-                    new_genome[y][x] = other.genome[y][x]
+                changer = self.genome[y][x] if random.random() < 0.5 else other.genome[y][x]
+                # if changer == "T":
+                #     continue
+                # # stop floaters
+                # if new_genome[y-1][x] == "T" or new_genome[y-1][x] == "|":
+                #     continue
+                # # bottom row
+                if y == height - 1:
+                    if changer == "-" or changer == "X":
+                        new_genome[y][x] = changer
+                        continue
+                    elif new_genome[y][x] != "-" or changer != "X":
+                        new_genome[y][x] = "X"
+                        continue
+                    else:
+                        continue
+                # # pipe extension constraint
+                # if changer == "|" and new_genome[y][x] == "T":
+                #     new_genome[y][x] = changer
+                #     continue
+                # has grid below
+                if y + 1 < height:
+                    # pipe constraint
+                    if changer == "|" and (new_genome[y+1][x] == "X" or new_genome[y+1][x] == "|"):
+                        new_genome[y][x] = changer
+                        continue
+                    elif changer == "|":
+                        continue
+                    # clean enemy spawns constraint
+                    if changer == "E" and new_genome[y][x] != "X" and new_genome[y+1][x] == "X":
+                        new_genome[y][x] = changer
+                        continue
+                    elif changer == "E":
+                        continue
+                if changer == "X":
+                    if y + 1 < height and y - 1 > 0:
+                        if new_genome[y+1][x] == "X" or new_genome[y-1][x] == "X" or new_genome[y][x+1] == "X" or new_genome[y][x-1] == "X":
+                            new_genome[y][x] = changer
+                            continue
+                if changer == "B":
+                    if y + 1 < height and y - 1 > 0:
+                        if new_genome[y][x+1] == "B" or new_genome[y][x-1] == "B":
+                            new_genome[y][x] = changer
+                            continue
+                if changer == "?" or changer == "M":
+                    if y + 1 < height and y - 1 > 0:
+                        if new_genome[y][x+1] == "?" or new_genome[y][x-1] == "?" or new_genome[y][x+1] == "M" or new_genome[y][x-1] == "M" or new_genome[y][x+1] == "B" or new_genome[y][x-1] == "B":
+                            if new_genome[y+1][x] == "-":
+                                new_genome[y][x] = changer
+                                continue
+                if new_genome == "X":
+                    if y + 1 < height and y - 1 > 0:
+                        if new_genome[y+1][x] == "X" or new_genome[y-1][x] == "X" or new_genome[y][x+1] == "X" or new_genome[y][x-1] == "X":
+                            new_genome[y][x] = changer
+                            continue
                 else:
-                    new_genome[y][x] = self.genome[y][x]
+                    new_genome[y][x] = "-"
+                if new_genome == "B":
+                    if y + 1 < height and y - 1 > 0:
+                        if new_genome[y][x+1] == "B" or new_genome[y][x-1] == "B":
+                            new_genome[y][x] = changer
+                            continue
+                else:
+                    new_genome[y][x] = "-"
+                if new_genome == "?" or new_genome == "M":
+                    if y + 1 < height and y - 1 > 0:
+                        if new_genome[y][x+1] == "?" or new_genome[y][x-1] == "?" or new_genome[y][x+1] == "M" or new_genome[y][x-1] == "M" or new_genome[y][x+1] == "B" or new_genome[y][x-1] == "B":
+                            if new_genome[y+1][x] == "-":
+                                new_genome[y][x] = changer
+                                continue
+                else:
+                    new_genome[y][x] = "-"
+                new_genome[y][x] = changer
         # do mutation; note we're returning a one-element tuple here
         # return Individual_Grid(self.mutate(new_genome))
-        return Individual_Grid(self.mutate(new_genome)), Individual_Grid(self.mutate(new_genome))
+        # get two mutated children
+        new1 = self.mutate(new_genome)
+        new2 = self.mutate(new_genome)
+        for cur in [new1, new2]:
+            for y in range(height - 1, 6, -1):
+                for x in range(left, right):
+                    # pipe fixer
+                    if cur[y][x] == "|" and cur[y-1][x] == "-":
+                        cur[y][x] = "T"
+                    if cur[y][x] == "T":
+                        for y2 in range(y+1, height - 1):
+                            cur[y2][x] = "|"
+        return (Individual_Grid(new1), Individual_Grid(new2))
         # return (Individual_Grid(new_genome),)
 
     # Turn the genome into a level string (easy for this genome)
@@ -401,7 +524,7 @@ class Individual_DE(object):
         return Individual_DE(g)
 
 
-Individual = Individual_DE  # Change this to Individual_DE to use the DE representation
+Individual = Individual_Grid  # Change this to Individual_DE to use the DE representation
 
 
 def generate_successors(population):
@@ -446,7 +569,23 @@ def generate_successors(population):
     while len(tournament_population) > tournament_size:
         tournament_group = make_groups(tournament_population, tournament_size)
         for group in tournament_group:
-            winners.append(max(group, key=Individual.fitness))
+            # calculate fitnesses and probabilities for the group
+            group_fitnesses = [individual.fitness() for individual in group]
+            min_fitness = min(group_fitnesses)
+            max_fitness = max(group_fitnesses)
+            # edge case where all fitnesses are the same
+            if min_fitness == max_fitness:
+                winners.append(group[0])
+                continue
+            fitness_range = max_fitness - min_fitness
+            normalized_fitnesses = [(fitness - min_fitness) / fitness_range for fitness in group_fitnesses]
+            cumulative_probability = [sum(normalized_fitnesses[:i+1]) for i in range(len(normalized_fitnesses))]
+            # select a winner based on probabilities
+            r = random.uniform(0, max(cumulative_probability))
+            for i in range(len(cumulative_probability)):
+                if r < cumulative_probability[i]:
+                    winners.append(group[i])
+                    break
         tournament_population = winners.copy()
         if len(winners) == tournament_size:
             break
@@ -507,7 +646,7 @@ def ga():
                     print("Max fitness:", str(best.fitness()))
                     print("Average generation time:", (now - start) / generation)
                     print("Net time:", now - start)
-                    with open("../levels/last.txt", 'w') as f:
+                    with open("levels/last.txt", 'w') as f:
                         for row in best.to_level():
                             f.write("".join(row) + "\n")
                 generation += 1
