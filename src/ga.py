@@ -78,14 +78,55 @@ class Individual_Grid(object):
         # STUDENT implement a mutation operator, also consider not mutating this individual
         # STUDENT also consider weighting the different tile types so it's not uniformly random
         # STUDENT consider putting more constraints on this to prevent pipes in the air, etc
+        # Define tile type weights (manually assigned or calculated)
+        tile_weights = {
+            "X": 0.2,
+            "-": 0.5,
+            "B": 0.1,
+            "|": 0.05,
+            "E": 0.15
+        }
 
-        left = 1
-        right = width - 1
-        for y in range(height):
-            for x in range(left, right):
-                if random.random() < 0.1:
-                    genome[y][x] = random.choice(options)
-        return genome
+        # Normalize weights
+        total_weight = sum(tile_weights.values())
+        normalized_weights = {tile_type: weight / total_weight for tile_type, weight in tile_weights.items()}
+
+        # Mutation rate
+        mutation_rate = 0.1  # Adjust as needed
+
+        # Iterate through each tile in the genome and apply selective mutation
+        mutated_genome = []
+        for row in genome:
+            mutated_row = []
+            for tile in row:
+                # Calculate mutation probability based on tile type weight
+                probability = normalized_weights.get(tile, 0) * mutation_rate
+                if random.random() < probability:
+                    # Mutate the tile with some mutation operation
+                    mutated_tile = mutate_tile(tile)
+                    mutated_row.append(mutated_tile)
+                else:
+                    mutated_row.append(tile)
+            mutated_genome.append(mutated_row)
+        return mutated_genome
+    
+    # Mutate a single tile
+    def mutate_tile(self, tile):
+        # Peform some mutation operation on the tile
+        if tile == "X":
+        # Example mutation logic for solid blocks
+            return random.choice(["-", "B", "|", "E"])  # Randomly change to another tile type
+        elif tile == "-":
+            # Example mutation logic for empty space
+            return random.choice(["X", "B", "|", "E"])  # Randomly change to another tile type
+        elif tile == "B":
+            # Example mutation logic for breakable blocks
+            return random.choice(["X", "-", "|", "E"])  # Randomly change to another tile type
+        # Add more mutation logic for other tile types as needed
+        else:
+            # If the tile type is not handled, simply return the original tile
+            return tile
+
 
     # Create zero or more children from self and other
     def generate_children(self, other):
@@ -466,7 +507,7 @@ def ga():
                     print("Max fitness:", str(best.fitness()))
                     print("Average generation time:", (now - start) / generation)
                     print("Net time:", now - start)
-                    with open("levels/last.txt", 'w') as f:
+                    with open("../levels/last.txt", 'w') as f:
                         for row in best.to_level():
                             f.write("".join(row) + "\n")
                 generation += 1
