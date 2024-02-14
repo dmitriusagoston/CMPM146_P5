@@ -132,7 +132,7 @@ class Individual_Grid(object):
             elif tile[y+1] == "X" and (tile[y][x-1] in {"X"} or tile[y][x+1] in {"X"}):
                 mutation = "X"
             else:
-                mutation = random.choices(["|", "X", "T", "-", "E"], weights=[0.1, 0.3, 0.05, 0.50, 0.05])[0]
+                mutation = random.choices(["|", "X", "-", "E"], weights=[0.1, 0.3, 0.50, 0.05])[0]
             
         # pipe topper
         if y + 1 < height and tile[y+1][x] in {"|"} and y > height - 5:
@@ -155,7 +155,7 @@ class Individual_Grid(object):
             mutation = random.choices(["-", "X"], weights=[0.9, 0.1])[0]
 
         # create gaps
-        if y == height - 1 and tile[y-1][x] == "-":
+        if y == height - 1 and tile[y-1][x] == "-" and tile[y-1][x+1] == "-" and tile[y-1][x-1] == "-":
             if tile[y][x-1] == "-" and tile[y][x+1] == "-":
                 mutation = random.choices(["-", "X"], weights=[0.3, 0.7])[0]
             if tile[y][x-1] == "-" or tile[y][x+1] == "-":
@@ -164,11 +164,14 @@ class Individual_Grid(object):
                 mutation = random.choices(["-", "X"], weights=[0.1, 0.9])[0]
 
         # stop floating pipes
-        if mutation == "|" and (y + 1 >= height or tile[y+1][x] not in {"X", "|"}):
+        if mutation == "|" and (y + 1 >= height or tile[y+1][x] not in {"X", "|"} or tile [y+1][x+1] != "X"):
             return tile[y][x]
         # good pipe mutation
-        elif mutation == "|" and (y + 1 < height and tile[y+1][x] in {"X", "|"}):
-            return mutation
+        elif mutation == "|" and (y + 1 < height and tile[y+1][x] in {"X", "|"} and tile[y+1][x+1] == "X"):
+            if tile[y+1][x] == "X" and y != height - 2:
+                return tile[y][x]
+            else:
+                return mutation
         
         # stop floating pipe tops
         if mutation == "T" and (y + 1 >= height or tile[y+1][x] not in {"X", "|"}):
@@ -185,7 +188,7 @@ class Individual_Grid(object):
             return mutation
         
         # create gaps
-        if mutation == "-" and y == height - 1 and tile[y-1][x] == "-":
+        if mutation == "-" and y == height - 1 and tile[y-1][x] == "-" and tile[y-1][x+1] == "-" and tile[y-1][x-1] == "-":
             return mutation
 
         # breakable blocks
@@ -202,7 +205,7 @@ class Individual_Grid(object):
         if mutation == "o" and y + 1 < height and tile[y+1][x] in {"-"}:
             return mutation
 
-        if mutation == "E" and y + 1 < height and tile[y+1][x] in {"X"}:
+        if mutation == "E" and y + 1 < height and tile[y+1][x] in {"X"} and tile[y-1][x] not in {"|", "T"}:
             return mutation
 
         else:
