@@ -46,8 +46,8 @@ class Individual_Grid(object):
         # STUDENT Modify this, and possibly add more metrics.  You can replace this with whatever code you like.
         coefficients = dict(
             length=0.5,
-            negativeSpace=1.5,
-            pathPercentage=1.5,
+            negativeSpace=0.5,
+            pathPercentage=0.5,
             emptyPercentage=4.5,
             decorationPercentage=0.5,
             leniency=0.5,
@@ -80,14 +80,14 @@ class Individual_Grid(object):
         # STUDENT consider putting more constraints on this to prevent pipes in the air, etc
         # Define tile type weights (manually assigned or calculated)
         tile_weights = {
-            "-": 0.5,  # an empty space
-            "X": 0.1,  # a solid wall
+            "-": 0.1,  # an empty space
+            "X": 0.01,  # a solid wall
             "?": 0.02,  # a question mark block with a coin
             "M": 0.01,  # a question mark block with a mushroom
             "B": 0.05,  # a breakable block
             "o": 0.1,  # a coin
             "|": 0.2,  # a pipe segment
-            "T": 0.05,  # a pipe top
+            "T": 0.65,  # a pipe top
             "E": 0.01,  # an enemy
         }
 
@@ -106,8 +106,8 @@ class Individual_Grid(object):
                 # Calculate mutation probability based on tile type weight
                 probability = normalized_weights.get(genome[y][x], 0) * mutation_rate
                 if random.random() < probability:
-                    # # Mutate the tile with some mutation operation
-                    mutation = random.choices(list(tile_weights.keys()), list(normalized_weights.values()), k=1)[0]
+                    # Mutate the tile with some mutation operation
+                    mutation = random.choice(list(tile_weights.keys()))
                     if mutation == "T":
                         continue
                     # # don't mutate pipes
@@ -123,31 +123,9 @@ class Individual_Grid(object):
                     if mutation == "|" and genome[y][x] == "T":
                         genome[y][x] = mutation
                         continue
-                    # # has grid below
-                    if y + 1 < height:
-                        # pipe constraint
-                        if mutation == "|" and (genome[y+1][x] == "X" or genome[y+1][x] == "|"):
-                            genome[y][x] = mutation
-                            continue
-                        elif mutation == "|":
-                            continue
-                        # clean enemy spawns constraint
-                        if mutation == "E" and genome[y][x] != "X" and genome[y+1][x] == "X":
-                            genome[y][x] = mutation
-                            continue
-                        elif mutation == "E":
-                            genome[y][x] = "-"
-                            continue
                     genome[y][x] = mutation
                 else:
                     continue
-        for y in range(height - 1, 6, -1):
-            for x in range(left, right):
-                # pipe fixer
-                # if genome[y][x] == "|":
-                #     genome[y-1][x] = "T"
-                if (genome[y][x] != "|" and genome[y][x] != "X") and (genome[y-1][x] == "|" and genome[y][x] != "T"):
-                    genome[y][x] = "|"
         return genome
     
     # Mutate a single tile
@@ -182,12 +160,12 @@ class Individual_Grid(object):
                 # STUDENT Which one should you take?  Self, or other?  Why?
                 # STUDENT consider putting more constraints on this to prevent pipes in the air, etc
                 changer = self.genome[y][x] if random.random() < 0.5 else other.genome[y][x]
-                # if changer == "T":
-                #     continue
-                # # stop floaters
-                # if new_genome[y-1][x] == "T" or new_genome[y-1][x] == "|":
-                #     continue
-                # # bottom row
+                if changer == "T":
+                    continue
+                # stop floaters
+                if new_genome[y-1][x] == "T" or new_genome[y-1][x] == "|":
+                    continue
+                # bottom row
                 if y == height - 1:
                     if changer == "-" or changer == "X":
                         new_genome[y][x] = changer
@@ -202,18 +180,16 @@ class Individual_Grid(object):
                 #     new_genome[y][x] = changer
                 #     continue
                 # has grid below
-                if y + 1 < height:
-                    # pipe constraint
-                    if changer == "|" and (new_genome[y+1][x] == "X" or new_genome[y+1][x] == "|"):
-                        new_genome[y][x] = changer
-                        continue
-                    elif changer == "|":
-                        continue
+                    # # pipe constraint
+                    # if changer == "|" and (new_genome[y+1][x] == "X" or new_genome[y+1][x] == "|"):
+                    #     new_genome[y][x] = changer
+                    #     continue
+                    # elif changer == "|":
+                    #     continue
                     # clean enemy spawns constraint
-                    if changer == "E" and new_genome[y][x] != "X" and new_genome[y+1][x] == "X":
+                if changer == "E" and new_genome[y+1][x] == "X":
+                    if y + 1 < height:
                         new_genome[y][x] = changer
-                        continue
-                    elif changer == "E":
                         continue
                 if changer == "X":
                     if y + 1 < height and y - 1 > 0:
@@ -231,29 +207,47 @@ class Individual_Grid(object):
                             if new_genome[y+1][x] == "-":
                                 new_genome[y][x] = changer
                                 continue
-                if new_genome == "X":
+                if new_genome[y][x] == "X":
                     if y + 1 < height and y - 1 > 0:
                         if new_genome[y+1][x] == "X" or new_genome[y-1][x] == "X" or new_genome[y][x+1] == "X" or new_genome[y][x-1] == "X":
                             new_genome[y][x] = changer
-                            continue
-                else:
-                    new_genome[y][x] = "-"
-                if new_genome == "B":
+                        else:
+                            new_genome[y][x] = "-"
+                    continue
+                if new_genome[y][x] == "B":
                     if y + 1 < height and y - 1 > 0:
                         if new_genome[y][x+1] == "B" or new_genome[y][x-1] == "B":
                             new_genome[y][x] = changer
                             continue
-                else:
-                    new_genome[y][x] = "-"
-                if new_genome == "?" or new_genome == "M":
+                        else:
+                            new_genome[y][x] = "-"
+                    continue
+                if new_genome[y][x] == "?" or new_genome == "M":
                     if y + 1 < height and y - 1 > 0:
                         if new_genome[y][x+1] == "?" or new_genome[y][x-1] == "?" or new_genome[y][x+1] == "M" or new_genome[y][x-1] == "M" or new_genome[y][x+1] == "B" or new_genome[y][x-1] == "B":
                             if new_genome[y+1][x] == "-":
                                 new_genome[y][x] = changer
                                 continue
-                else:
-                    new_genome[y][x] = "-"
-                new_genome[y][x] = changer
+                            else:
+                                new_genome[y][x] = "-"
+                    continue
+                if new_genome[y][x] == "E":
+                    if y + 1 < height:
+                        if new_genome[y+1][x] == "X":
+                            continue
+                        else:
+                            new_genome[y][x] = "-"
+                    continue
+                if new_genome[y][x] == "T" or new_genome[y][x] == "|":
+                    if y > height - 3:
+                        continue
+                    else:
+                        new_genome[y][x] = "-"
+                        continue
+                if new_genome[y][x] != changer:
+                    new_genome[y][x] = changer
+                    continue
+                
         # do mutation; note we're returning a one-element tuple here
         # return Individual_Grid(self.mutate(new_genome))
         # get two mutated children
