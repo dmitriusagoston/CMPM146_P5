@@ -81,7 +81,7 @@ class Individual_Grid(object):
         # Define tile type weights (manually assigned or calculated)
         tile_weights = {
             "-": 0.1,  # an empty space
-            "X": 0.01,  # a solid wall
+            "X": 0.05,  # a solid wall
             "?": 0.02,  # a question mark block with a coin
             "M": 0.01,  # a question mark block with a mushroom
             "B": 0.05,  # a breakable block
@@ -107,6 +107,12 @@ class Individual_Grid(object):
                 probability = normalized_weights.get(genome[y][x], 0) * mutation_rate
                 if y + 1 < height and genome[y+1][x] in {"|"}:
                     probability = 1.0
+                if genome[y][x-1] in {"?", "B", "M"} or genome[y][x+1] in {"?", "B", "M"}:
+                    probability = 0.45
+                if y == height - 1 and genome[y-1][x] == "-":
+                    probability = 0.01
+                    if genome[y][x-1] == "-" and genome[y][x+1] == "-":
+                        probability = 0.1
                 if random.random() < probability:
                     # Mutate the tile with some mutation operation
                     # mutation = random.choice(list(tile_weights.keys()))
@@ -119,21 +125,43 @@ class Individual_Grid(object):
     # Mutate a single tile
     def mutate_tile(self, tile, y, x):
         mutation = random.choice(options)
+        # build pipes and walls
         if y + 1 < height and tile[y+1][x] in {"X", "|"}:
             if tile[y+1] == "|":
                 mutation = random.choices(["|", "X"], weights=[0.9, 0.1])[0]
             elif tile[y+1] == "X" and (tile[y][x-1] in {"X"} or tile[y][x+1] in {"X"}):
-                mutation = random.choices(["X", "T"], weights=[0.95, 0.05])[0]
+                mutation = "X"
             else:
-                mutation = random.choices(["|", "X"], weights=[0.3, 0.7])[0]
+                mutation = random.choices(["|", "X", "T", "-", "E"], weights=[0.1, 0.3, 0.05, 0.50, 0.05])[0]
             
+        # pipe topper
         if y + 1 < height and tile[y+1][x] in {"|"} and y > height - 5:
             mutation = random.choices(["|", "T"], weights=[0.1, 0.9])[0]
         if y + 1 < height and tile[y+1][x] in {"|"} and y <= height - 4:
             mutation = "T"
+
+        # breakable blocks
+        if y + 1 < height and (tile[y+1][x] == "-" and tile[y-1][x] == "-") and (tile[y][x-1] in {"?", "M", "B", "-"} and tile[y][x+1] in {"?", "M", "B", "-"}):
+            if tile[y][x-1] == "-" and tile[y][x+1] == "-":
+                mutation = random.choices(["?", "M", "B", "-", "o"], weights=[0.05, 0.05, 0.05, 0.75, 0.1])[0]
+            else:
+                mutation = random.choices(["?", "M", "B", "-"], weights=[0.2, 0.2, 0.3, 0.3])[0]
+
+        if tile[y][x-1] == "o" or tile[y][x+1] == "o":
+            mutation = random.choices(["o", "-"], weights=[0.3, 0.7])[0]
+
+        # some distance between objects
         if (tile[y][x-1] in {"X", "|", "T"} or tile[y][x+1] in {"X", "|", "T"}) and tile[y][x] != "X":
             mutation = random.choices(["-", "X"], weights=[0.9, 0.1])[0]
 
+        # create gaps
+        if y == height - 1 and tile[y-1][x] == "-":
+            if tile[y][x-1] == "-" and tile[y][x+1] == "-":
+                mutation = random.choices(["-", "X"], weights=[0.3, 0.7])[0]
+            if tile[y][x-1] == "-" or tile[y][x+1] == "-":
+                mutation = random.choices(["-", "X"], weights=[0.15, 0.85])[0]
+            else:
+                mutation = random.choices(["-", "X"], weights=[0.1, 0.9])[0]
 
         # stop floating pipes
         if mutation == "|" and (y + 1 >= height or tile[y+1][x] not in {"X", "|"}):
@@ -155,10 +183,31 @@ class Individual_Grid(object):
         # good walls
         elif mutation == "X" and (y + 1 < height and tile[y+1][x] in {"X"}):
             return mutation
+        
+        # create gaps
+        if mutation == "-" and y == height - 1 and tile[y-1][x] == "-":
+            return mutation
+
+        # breakable blocks
+        if mutation in {"?", "M", "B"} and (y + 1 >= height or tile[y+1][x] not in {"-"} or tile[y-1][x] not in {"-"}) or (tile[y][x-1] not in {"?", "M", "B", "-"} or tile[y][x+1] not in {"?", "M", "B", "-"}):
+            return tile[y][x]
+        elif mutation in {"B", "?", "M"} and y + 1 < height and (tile[y+1][x] == "-" and tile[y-1][x] == "-") and (tile[y][x-1] in {"?", "M", "B", "-"} and tile[y][x+1] in {"?", "M", "B", "-"}):
+            # loop through surrounding tiles to check if they are empty, except x-1 and x+1
+            for i in range(y-1, y+2):
+                for j in range(x-1, x+2):
+                    if i != y and j != x and tile[i][j] != "-":
+                        return tile[y][x]
+            return mutation
+        
+        if mutation == "o" and y + 1 < height and tile[y+1][x] in {"-"}:
+            return mutation
+
+        if mutation == "E" and y + 1 < height and tile[y+1][x] in {"X"}:
+            return mutation
+
         else:
             # If the tile type is not handled, simply return the original tile
             return tile[y][x]
-
 
     # Create zero or more children from self and other
     def generate_children(self, other):
